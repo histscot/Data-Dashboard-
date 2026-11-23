@@ -941,7 +941,7 @@ footer .note{margin:3px 0;}
   <div class="board-wrap">
     <div class="board-note-mobile">This tab is a widescreen PowerPoint slide by design &mdash; on a phone it's shown stacked below instead of scaled down to stay readable. Use the desktop version for the actual export.</div>
     <div class="board-toolbar">
-      <button class="print-btn" id="exportPptxBtn">Export to PowerPoint</button>
+      <button class="print-btn" id="exportPptxBtn">Export Charts (PNG)</button>
     </div>
     <div class="slide">
       <div class="slide-head">
@@ -962,12 +962,23 @@ footer .note{margin:3px 0;}
 
       <div class="slide-row-charts">
         <div class="slide-box board-combo-box">
-          <h3>13-Week Bulk (+ Dedicated) &mdash; Carrier Controllable On-Time &amp; Load Volume</h3>
+          <h3>Delivery &mdash; 13-Week Bulk (+ Dedicated) &mdash; Carrier Controllable On-Time &amp; Load Volume</h3>
           <div class="board-combo-wrap"><canvas id="chartBoardBulk"></canvas></div>
         </div>
         <div class="slide-box board-combo-box">
-          <h3>13-Week Truckload (+ IML, FB) &mdash; Carrier Controllable On-Time &amp; Load Volume</h3>
+          <h3>Delivery &mdash; 13-Week Truckload (+ IML, FB) &mdash; Carrier Controllable On-Time &amp; Load Volume</h3>
           <div class="board-combo-wrap"><canvas id="chartBoardTL"></canvas></div>
+        </div>
+      </div>
+
+      <div class="slide-row-charts">
+        <div class="slide-box board-combo-box">
+          <h3>Pick Up &mdash; 13-Week Bulk (+ Dedicated) &mdash; Carrier Controllable On-Time &amp; Load Volume</h3>
+          <div class="board-combo-wrap"><canvas id="chartBoardBulkPU"></canvas></div>
+        </div>
+        <div class="slide-box board-combo-box">
+          <h3>Pick Up &mdash; 13-Week Truckload (+ IML, FB) &mdash; Carrier Controllable On-Time &amp; Load Volume</h3>
+          <div class="board-combo-wrap"><canvas id="chartBoardTLPU"></canvas></div>
         </div>
       </div>
 
@@ -1006,12 +1017,22 @@ footer .note{margin:3px 0;}
       </div>
       <div class="slide-row-charts-compact">
         <div class="slide-box board-combo-box-compact">
-          <h3>Bulk (+ Dedicated)</h3>
+          <h3>Delivery &mdash; Bulk (+ Dedicated)</h3>
           <div class="board-combo-wrap-compact"><canvas id="chartBoardBulkCompact"></canvas></div>
         </div>
         <div class="slide-box board-combo-box-compact">
-          <h3>Truckload (+ IML, FB)</h3>
+          <h3>Delivery &mdash; Truckload (+ IML, FB)</h3>
           <div class="board-combo-wrap-compact"><canvas id="chartBoardTLCompact"></canvas></div>
+        </div>
+      </div>
+      <div class="slide-row-charts-compact">
+        <div class="slide-box board-combo-box-compact">
+          <h3>Pick Up &mdash; Bulk (+ Dedicated)</h3>
+          <div class="board-combo-wrap-compact"><canvas id="chartBoardBulkPUCompact"></canvas></div>
+        </div>
+        <div class="slide-box board-combo-box-compact">
+          <h3>Pick Up &mdash; Truckload (+ IML, FB)</h3>
+          <div class="board-combo-wrap-compact"><canvas id="chartBoardTLPUCompact"></canvas></div>
         </div>
       </div>
     </div>
@@ -1927,34 +1948,32 @@ document.getElementById('pageSeg').addEventListener('click', (e)=>{
 document.getElementById('printBtn').addEventListener('click', ()=> window.print());
 
 document.getElementById('exportPptxBtn').addEventListener('click', async ()=>{
+  // Exports each Board Slide chart as its own PNG file (title included) for use in reporting.
   const btn = document.getElementById('exportPptxBtn');
   const originalLabel = btn.textContent;
   btn.textContent = 'Exporting\u2026';
   btn.disabled = true;
   try{
-    const slideEl = document.querySelector('#page-board .slide');
-    const canvas = await html2canvas(slideEl, { backgroundColor: '#04101C', scale: 2, useCORS: true });
-    const imgData = canvas.toDataURL('image/png');
-
-    const pres = new PptxGenJS();
-    pres.defineLayout({ name:'PENSKE_WIDE', width:13.33, height:7.5 });
-    pres.layout = 'PENSKE_WIDE';
-    const slide = pres.addSlide();
-    slide.background = { color:'04101C' };
-
-    // fit the captured image proportionally (it may be taller than 16:9 now that the
-    // slide grows with content) rather than stretching it to fill the frame
-    const slideW = 13.33, slideH = 7.5;
-    const imgRatio = canvas.width / canvas.height;
-    const slideRatio = slideW / slideH;
-    let w, h, x, y;
-    if(imgRatio > slideRatio){ w = slideW; h = slideW / imgRatio; x = 0; y = (slideH - h) / 2; }
-    else { h = slideH; w = slideH * imgRatio; y = 0; x = (slideW - w) / 2; }
-    slide.addImage({ data:imgData, x, y, w, h });
-    await pres.writeFile({ fileName:'Carrier_Controllable_OnTime_Board_Slide.pptx' });
+    const items = [
+      ['chartBoardBulk','Bulk_Delivery_13wk'], ['chartBoardBulkPU','Bulk_PickUp_13wk'],
+      ['chartBoardTL','Truckload_Delivery_13wk'], ['chartBoardTLPU','Truckload_PickUp_13wk'],
+      ['chartBoardBulkCompact','Bulk_Delivery_compact'], ['chartBoardBulkPUCompact','Bulk_PickUp_compact'],
+      ['chartBoardTLCompact','Truckload_Delivery_compact'], ['chartBoardTLPUCompact','Truckload_PickUp_compact']
+    ];
+    for(const [id,name] of items){
+      const box = document.getElementById(id).closest('.slide-box');
+      const canvas = await html2canvas(box, { backgroundColor:'#0A1F33', scale:3, useCORS:true });
+      await new Promise(res=> canvas.toBlob(blob=>{
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = `Board_${name}.png`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(a.href), 2000); res();
+      }, 'image/png'));
+      await new Promise(r=>setTimeout(r,350));
+    }
   } catch(err){
-    console.error('PPTX export failed', err);
-    alert('Export to PowerPoint failed: ' + err.message);
+    console.error('Chart export failed', err);
+    alert('Chart export failed: ' + err.message);
   } finally {
     btn.textContent = originalLabel;
     btn.disabled = false;
@@ -2822,7 +2841,7 @@ function renderSummary(){
 }
 
 // ---------------- board slide (fixed 13-week, all carriers -- ignores dashboard filters by design) ----------------
-let chartBoardBulk, chartBoardTL, chartBoardBulkCompact, chartBoardTLCompact;
+let chartBoardBulk, chartBoardTL, chartBoardBulkCompact, chartBoardTLCompact, chartBoardBulkPU, chartBoardTLPU, chartBoardBulkPUCompact, chartBoardTLPUCompact;
 const BOARD_SITES = [
   { name:'CA_C521_Brockville LubProd BLK', short:'Brockville' },
   { name:'US_U001_Congo_Bulk_Lub', short:'Congo' },
@@ -2848,11 +2867,12 @@ function board13WeekIdxSet(){
   for(let i=Math.max(0,boardNWeeks-13); i<boardNWeeks; i++) set.add(i);
   return set;
 }
-function boardWeeklyModeSeries(modeIdxSet){
+function boardWeeklyModeSeries(modeIdxSet, src){
+  src = src || DATA.dd; // DATA.dd = delivery, DATA.pd = pick up (same row layout)
   const wIdxList = [...board13WeekIdxSet()].sort((a,b)=>a-b);
   const byWeek = {};
   wIdxList.forEach(i=>{ byWeek[i] = [0,0]; }); // [loads, carr_late]
-  DATA.dd.forEach(r=>{
+  src.forEach(r=>{
     if(!modeIdxSet.has(r[3])) return;
     if(!(r[0] in byWeek)) return;
     byWeek[r[0]][0]+=r[5]; byWeek[r[0]][1]+=r[7];
@@ -3056,6 +3076,16 @@ function renderBoardSlide(){
   // duplicate compact versions (1.32in x 4.45in), same underlying data
   chartBoardBulkCompact = upsertBoardComboCompact('chartBoardBulkCompact', chartBoardBulkCompact, bulkSeries.labels, bulkSeries.loadsArr, bulkSeries.pctArr, bulkFloor, bulkSeries.weekIso);
   chartBoardTLCompact = upsertBoardComboCompact('chartBoardTLCompact', chartBoardTLCompact, tlSeries.labels, tlSeries.loadsArr, tlSeries.pctArr, tlFloor, tlSeries.weekIso);
+
+  // matching Pick Up charts (same 13 weeks, same modes, carrier-controllable on-time pick up from Pickup Details)
+  const bulkPU = boardWeeklyModeSeries(bulkModeSet, DATA.pd);
+  const bulkPUFin = bulkPU.pctArr.filter(v=>v!==null); const bulkPUFloor = bulkPUFin.length && Math.min(...bulkPUFin) < 50 ? 0 : 50;
+  const tlPU = boardWeeklyModeSeries(tlModeSet, DATA.pd);
+  const tlPUFin = tlPU.pctArr.filter(v=>v!==null); const tlPUFloor = tlPUFin.length && Math.min(...tlPUFin) < 50 ? 0 : 50;
+  chartBoardBulkPU = upsertBoardCombo('chartBoardBulkPU', chartBoardBulkPU, bulkPU.labels, bulkPU.loadsArr, bulkPU.pctArr, bulkPUFloor, bulkPU.weekIso);
+  chartBoardTLPU = upsertBoardCombo('chartBoardTLPU', chartBoardTLPU, tlPU.labels, tlPU.loadsArr, tlPU.pctArr, tlPUFloor, tlPU.weekIso);
+  chartBoardBulkPUCompact = upsertBoardComboCompact('chartBoardBulkPUCompact', chartBoardBulkPUCompact, bulkPU.labels, bulkPU.loadsArr, bulkPU.pctArr, bulkPUFloor, bulkPU.weekIso);
+  chartBoardTLPUCompact = upsertBoardComboCompact('chartBoardTLPUCompact', chartBoardTLPUCompact, tlPU.labels, tlPU.loadsArr, tlPU.pctArr, tlPUFloor, tlPU.weekIso);
 
   // LTL performance box -- last 3 full months + YTD
   const last3 = lastNCompleteMonths(3); // ascending: oldest..newest
