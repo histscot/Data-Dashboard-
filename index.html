@@ -575,7 +575,7 @@ footer .note{margin:3px 0;}
 .site-table th, .site-table td{padding:2.5px 5px;}
 .site-table .site-name{width:26%;}
 .site-detail-table .site-name{width:12%;}
-.site-detail-table thead th{text-align:center;}
+.site-table.site-detail-table thead th{text-align:center !important;}
 .site-detail-table thead th.site-name{text-align:left;}
 .site-detail-table th.month-hdr{font-size:11px;}
 .site-detail-table td.score-cell{white-space:nowrap;}
@@ -3016,7 +3016,7 @@ function sitemStats(rows, month, originIdx, modeSet){
   let loads=0, cl=0, la=0;
   (rows||[]).forEach(r=>{
     if(r[0]!==month) return;
-    if(originIdx!==null && r[2]!==originIdx) return;
+    if(originIdx!==null && !(Array.isArray(originIdx) ? originIdx.includes(r[2]) : r[2]===originIdx)) return;
     if(modeSet!==null && !modeSet.has(r[1])) return;
     loads+=r[3]; cl+=r[4]; la+=r[5];
   });
@@ -3170,6 +3170,13 @@ function renderBoardSlide(){
   const siteIdxOf = site=>DATA.origins.indexOf(site.name);
   const bulkAll = bulkModeSet;
   const spec = [{short:'All Bulk', idx:null, modes:bulkAll}].concat(BOARD_SITES.map(s=>({short:s.short, idx:siteIdxOf(s), modes:null})));
+  // additional toller sites for the bottom detail section (all of each site's origin names: bulk, packaged, legacy)
+  const tollerSite = (short, names)=>({ short, idx:names.map(n=>DATA.origins.indexOf(n)).filter(i=>i>=0), modes:null });
+  const specDetail = spec.concat([
+    tollerSite('GTMK', ['US4553 MCKEESROC GORDONT LUBSC','US_U049_Gordon-MCKees_Bulk_Lub','US_U049_Gordon-MCKees_Pkg_Lub']),
+    tollerSite('ZXP',  ['US4554 HIGHLNDS ZXP TECH LUBSC','USLubes ZXP_Tech_Bulk','USLubes ZXP_Tech_Pkg']),
+    tollerSite('SAS',  ['US4559 HOUSTON SAS LUBSC','US_U063_SAS-Houston_Bulk_Lub','US_U063_SAS-Houston_Pkg_Lub'])
+  ]);
   const rowStats = (sp, month)=>({ del: sitemStats(DATA.sitem_dd, month, sp.idx, sp.modes), pu: sitemStats(DATA.sitem_pd, month, sp.idx, sp.modes) });
   const siteRowHtml = (s, bold)=>{
     const sp = spec.find(x=>x.short===s.short); const a=rowStats(sp, older), b=rowStats(sp, newer);
@@ -3230,9 +3237,9 @@ function renderBoardSlide(){
         <th colspan="3" class="grp-b grp-divider">Pick Up</th><th colspan="3" class="grp-b">Delivery</th>
       </tr>
       <tr>${sub3('grp-a',true)}${sub3('grp-a',false)}${sub3('grp-b',true)}${sub3('grp-b',false)}</tr>
-    </thead><tbody>` + spec.map((sp,i)=>detRow(sp,i===0)).join('') + `</tbody>`;
+    </thead><tbody>` + specDetail.map((sp,i)=>detRow(sp,i===0)).join('') + `</tbody>`;
   document.getElementById('boardSiteDetailNote').textContent =
-    'Ctrl. = carrier controllable on-time (excludes lateness not attributable to the carrier); Overall = all on-time regardless of cause. Months are calendar months by actual arrival date; "All Bulk" includes Dedicated Service.';
+    'Ctrl. = carrier controllable on-time (excludes lateness not attributable to the carrier); Overall = all on-time regardless of cause. Months are calendar months by actual arrival date; "All Bulk" includes Dedicated Service; GTMK (Gordon McKees), ZXP and SAS combine each site\'s bulk and packaged origins.';
 }
 
 // ---------------- lane metrics page ----------------
